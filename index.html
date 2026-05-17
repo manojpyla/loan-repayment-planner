@@ -6,16 +6,31 @@
     <title>Home Loan Repayment Calculator</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --bg: #f0f2f5; --card-bg: #fff; --text: #333; --text-muted: #555;
+            --heading: #1a237e; --heading2: #283593; --accent-bg: #e8eaf6;
+            --input-bg: #fff; --input-border: #ccc; --table-border: #eee;
+            --shadow: rgba(0,0,0,0.08);
+        }
+        [data-theme="dark"] {
+            --bg: #121212; --card-bg: #1e1e1e; --text: #e0e0e0; --text-muted: #aaa;
+            --heading: #7986cb; --heading2: #9fa8da; --accent-bg: #263238;
+            --input-bg: #2c2c2c; --input-border: #444; --table-border: #333;
+            --shadow: rgba(0,0,0,0.3);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; }
         .dashboard { max-width: 1400px; margin: 0 auto; padding: 20px; }
-        h1 { text-align: center; margin-bottom: 24px; color: #1a237e; }
+        .header { display: flex; justify-content: center; align-items: center; margin-bottom: 24px; position: relative; }
+        .header h1 { color: var(--heading); }
+        .theme-toggle { position: absolute; right: 0; background: var(--card-bg); border: 1px solid var(--input-border); border-radius: 24px; padding: 8px 16px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; color: var(--text); transition: background 0.3s, border-color 0.3s; }
+        .theme-toggle:hover { border-color: #3f51b5; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .card h2 { margin-bottom: 16px; color: #283593; font-size: 1.1rem; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px var(--shadow); transition: background 0.3s; }
+        .card h2 { margin-bottom: 16px; color: var(--heading2); font-size: 1.1rem; }
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; margin-bottom: 4px; font-weight: 500; font-size: 0.9rem; }
-        .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; background: #fff; }
+        .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--input-border); border-radius: 6px; font-size: 0.95rem; background: var(--input-bg); color: var(--text); transition: background 0.3s, border-color 0.3s, color 0.3s; }
         .form-group input:focus, .form-group select:focus { outline: none; border-color: #3f51b5; }
         .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
         .btn-primary { background: #3f51b5; color: #fff; }
@@ -23,13 +38,13 @@
         .btn-success { background: #43a047; color: #fff; }
         .btn-success:hover { background: #388e3c; }
         .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
-        .summary-item { background: #e8eaf6; padding: 14px; border-radius: 8px; text-align: center; }
-        .summary-item .value { font-size: 1.3rem; font-weight: 700; color: #1a237e; }
-        .summary-item .label { font-size: 0.8rem; color: #555; margin-top: 4px; }
+        .summary-item { background: var(--accent-bg); padding: 14px; border-radius: 8px; text-align: center; transition: background 0.3s; }
+        .summary-item .value { font-size: 1.3rem; font-weight: 700; color: var(--heading); }
+        .summary-item .label { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
         .table-wrap { max-height: 400px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid #eee; }
-        th { background: #e8eaf6; position: sticky; top: 0; }
+        th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--table-border); }
+        th { background: var(--accent-bg); position: sticky; top: 0; }
         td:first-child, th:first-child { text-align: center; }
         .charts { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .chart-container { position: relative; height: 320px; }
@@ -42,7 +57,12 @@
 </head>
 <body>
 <div class="dashboard">
-    <h1>Home Loan Repayment Calculator</h1>
+    <div class="header">
+        <h1>Home Loan Repayment Calculator</h1>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Toggle Dark Mode">
+            <span id="themeIcon">&#9790;</span> <span id="themeLabel">Dark</span>
+        </button>
+    </div>
 
     <div class="grid">
         <!-- Input Panel -->
@@ -154,6 +174,37 @@
 <script>
 let extraPayments = [];
 let barChartInstance, lineChartInstance, pieChartInstance, balanceChartInstance;
+
+function isDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
+
+function toggleTheme() {
+    const dark = !isDark();
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
+    document.getElementById('themeIcon').innerHTML = dark ? '&#9788;' : '&#9790;';
+    document.getElementById('themeLabel').textContent = dark ? 'Light' : 'Dark';
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    calculate();
+}
+
+// Restore saved theme on load
+(function() {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('themeIcon').innerHTML = '&#9788;';
+            document.getElementById('themeLabel').textContent = 'Light';
+        });
+    }
+})();
+
+function getChartColors() {
+    const dark = isDark();
+    return {
+        text: dark ? '#e0e0e0' : '#666',
+        grid: dark ? '#333' : '#e0e0e0',
+    };
+}
 
 function formatCurrency(n) {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
@@ -334,17 +385,21 @@ function renderCharts(schedule) {
     // Destroy old charts
     [barChartInstance, lineChartInstance, pieChartInstance, balanceChartInstance].forEach(c => c && c.destroy());
 
+    const cc = getChartColors();
+    const scaleOpts = { ticks: { color: cc.text }, grid: { color: cc.grid } };
+    const legendOpts = { labels: { color: cc.text } };
+
     // Bar chart
     barChartInstance = new Chart(document.getElementById('barChart'), {
         type: 'bar',
         data: {
             labels,
             datasets: [
-                { label: 'Principal', data: principals, backgroundColor: '#3f51b5' },
+                { label: 'Principal', data: principals, backgroundColor: '#5c6bc0' },
                 { label: 'Interest', data: interests, backgroundColor: '#ef5350' }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: legendOpts }, scales: { x: { stacked: true, ...scaleOpts }, y: { stacked: true, ...scaleOpts } } }
     });
 
     // Line chart
@@ -353,11 +408,11 @@ function renderCharts(schedule) {
         data: {
             labels,
             datasets: [
-                { label: 'Cumulative Principal', data: cumPrincipals, borderColor: '#3f51b5', fill: false, tension: 0.2 },
+                { label: 'Cumulative Principal', data: cumPrincipals, borderColor: '#5c6bc0', fill: false, tension: 0.2 },
                 { label: 'Cumulative Interest', data: cumInterests, borderColor: '#ef5350', fill: false, tension: 0.2 }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: legendOpts }, scales: { x: scaleOpts, y: scaleOpts } }
     });
 
     // Pie chart
@@ -365,9 +420,9 @@ function renderCharts(schedule) {
         type: 'doughnut',
         data: {
             labels: ['Total Principal', 'Total Interest'],
-            datasets: [{ data: [Math.round(totalP), Math.round(totalI)], backgroundColor: ['#3f51b5', '#ef5350'] }]
+            datasets: [{ data: [Math.round(totalP), Math.round(totalI)], backgroundColor: ['#5c6bc0', '#ef5350'] }]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: legendOpts } }
     });
 
     // Balance chart
@@ -375,9 +430,9 @@ function renderCharts(schedule) {
         type: 'line',
         data: {
             labels,
-            datasets: [{ label: 'Outstanding Balance', data: balances, borderColor: '#43a047', backgroundColor: 'rgba(67,160,71,0.1)', fill: true, tension: 0.2 }]
+            datasets: [{ label: 'Outstanding Balance', data: balances, borderColor: '#66bb6a', backgroundColor: 'rgba(102,187,106,0.1)', fill: true, tension: 0.2 }]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: legendOpts }, scales: { x: scaleOpts, y: scaleOpts } }
     });
 }
 

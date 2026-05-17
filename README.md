@@ -86,6 +86,22 @@ The app comes pre-loaded with sample loan data:
 - **Chart.js** (CDN) — For interactive chart visualizations
 - **Responsive Design** — Works on desktop and mobile browsers
 
+## Version History
+
+### v1.2.0
+- Added **dark/light theme toggle** with smooth transitions
+- Theme preference persisted in localStorage across sessions
+- Charts adapt colors (text, gridlines, legends) to match selected theme
+- CSS variable-based theming for consistent styling
+
+### v1.1.0
+- Added **recurring additional payments** with frequency options (Monthly, Quarterly, Half-Yearly, Yearly)
+- Changed tenure input to **months** for finer control
+- Set EMI due date to the **23rd of each month**
+
+### v1.0.0
+- Initial release with EMI calculator, amortization schedule, one-time additional payments, and 4 interactive charts
+
 ## License
 
 MIT License — free to use, modify, and distribute.
