@@ -9,6 +9,7 @@ A web-based dashboard to simulate home loan repayment schedules, track additiona
 - **Repayment Schedule** — Generates a detailed month-by-month amortization table with EMI, principal, interest, extra payments, and remaining balance
 - **Additional Payments** — Record one-time or recurring extra payments toward your loan principal
 - **Recurring Payment Frequencies** — Supports Monthly, Quarterly, Half-Yearly, and Yearly recurring additional payments
+- **Co-Payer Support** — Add co-payers to split the loan equally, assign extra payments per payer, and view individual payoff timelines
 - **Impact Analysis** — Shows interest saved and months reduced when additional payments are made
 - **Interactive Charts** — Four visualizations powered by Chart.js:
   - **Principal vs Interest (Stacked Bar)** — Monthly breakdown of each EMI
@@ -88,6 +89,13 @@ The app comes pre-loaded with sample loan data:
 - **Responsive Design** — Works on desktop and mobile browsers
 
 ## Version History
+
+### v1.4.0
+- Added **co-payer support** to split loan equally among multiple borrowers
+- Each co-payer gets an individual share of the outstanding amount and EMI
+- Additional payments can be assigned to a **specific payer** or split equally among all
+- **Per-payer breakdown table** showing share, EMI, extra paid, interest, payoff months, and interest saved
+- Each co-payer's early payoff is calculated independently based on their extra payments
 
 ### v1.3.0
 - Added **Payoff In (Months)** metric to loan summary showing total months to early payoff with current strategy

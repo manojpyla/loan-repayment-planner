@@ -52,6 +52,15 @@
         .extra-payments table { font-size: 0.82rem; }
         .extra-payments .btn { padding: 4px 10px; font-size: 0.8rem; }
         .full-width { grid-column: 1 / -1; }
+        .copayer-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .copayer-tag { background: var(--accent-bg); padding: 6px 12px; border-radius: 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
+        .copayer-tag .remove { cursor: pointer; font-weight: 700; color: #ef5350; font-size: 1rem; line-height: 1; }
+        .copayer-breakdown { margin-top: 12px; }
+        .copayer-breakdown table { font-size: 0.85rem; }
+        .copayer-breakdown th, .copayer-breakdown td { text-align: center; }
+        .inline-add { display: flex; gap: 8px; }
+        .inline-add input { flex: 1; }
+        .inline-add .btn { white-space: nowrap; }
         @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .charts { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -112,14 +121,39 @@
                     <option value="yearly">Yearly</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label>Paid By</label>
+                <select id="extraPaymentPayer">
+                    <option value="all">All Payers (Split Equally)</option>
+                </select>
+            </div>
             <button class="btn btn-success" onclick="addExtraPayment()">Add Payment</button>
 
             <div class="extra-payments" id="extraPaymentsSection" style="display:none;">
                 <h2 style="margin-top:16px;">Recorded Additional Payments</h2>
                 <table>
-                    <thead><tr><th>Date</th><th>Amount</th><th>Frequency</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Amount</th><th>Frequency</th><th>Paid By</th><th>Action</th></tr></thead>
                     <tbody id="extraPaymentsBody"></tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Co-Payer Panel -->
+        <div class="card full-width">
+            <h2>Co-Payers</h2>
+            <div class="inline-add">
+                <input type="text" id="copayerName" placeholder="Enter co-payer name">
+                <button class="btn btn-primary" onclick="addCopayer()">Add Co-Payer</button>
+            </div>
+            <div class="copayer-tags" id="copayerTags"></div>
+            <div class="copayer-breakdown" id="copayerBreakdown" style="display:none;">
+                <h2 style="margin-top:16px;">Per-Payer Breakdown</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Payer</th><th>Share</th><th>EMI Share</th><th>Extra Paid</th><th>Interest</th><th>Payoff In</th><th>Interest Saved</th></tr></thead>
+                        <tbody id="copayerBreakdownBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -174,6 +208,7 @@
 
 <script>
 let extraPayments = [];
+let copayers = [];
 let barChartInstance, lineChartInstance, pieChartInstance, balanceChartInstance;
 
 function isDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
@@ -213,12 +248,43 @@ function formatCurrency(n) {
 
 const frequencyLabels = { once: 'One-time', monthly: 'Monthly', quarterly: 'Quarterly', 'half-yearly': 'Half-Yearly', yearly: 'Yearly' };
 
+function addCopayer() {
+    const input = document.getElementById('copayerName');
+    const name = input.value.trim();
+    if (!name) { alert('Please enter a co-payer name.'); return; }
+    if (copayers.includes(name)) { alert('Co-payer already exists.'); return; }
+    copayers.push(name);
+    input.value = '';
+    renderCopayers();
+    calculate();
+}
+
+function removeCopayer(index) {
+    const removed = copayers.splice(index, 1)[0];
+    extraPayments = extraPayments.filter(ep => ep.payer !== removed);
+    renderCopayers();
+    renderExtraPayments();
+    calculate();
+}
+
+function renderCopayers() {
+    const tags = document.getElementById('copayerTags');
+    tags.innerHTML = copayers.map((name, i) =>
+        `<span class="copayer-tag">${name} <span class="remove" onclick="removeCopayer(${i})">&times;</span></span>`
+    ).join('');
+    // Update payer dropdown
+    const sel = document.getElementById('extraPaymentPayer');
+    sel.innerHTML = '<option value="all">All Payers (Split Equally)</option>' +
+        copayers.map(n => `<option value="${n}">${n}</option>`).join('');
+}
+
 function addExtraPayment() {
     const date = document.getElementById('extraPaymentDate').value;
     const amount = parseFloat(document.getElementById('extraPaymentAmount').value);
     const frequency = document.getElementById('extraPaymentFrequency').value;
+    const payer = document.getElementById('extraPaymentPayer').value;
     if (!date || !amount || amount <= 0) { alert('Please enter a valid date and amount.'); return; }
-    extraPayments.push({ date, amount, frequency });
+    extraPayments.push({ date, amount, frequency, payer });
     extraPayments.sort((a, b) => a.date.localeCompare(b.date));
     renderExtraPayments();
     calculate();
@@ -236,7 +302,7 @@ function renderExtraPayments() {
     if (extraPayments.length === 0) { section.style.display = 'none'; return; }
     section.style.display = 'block';
     body.innerHTML = extraPayments.map((p, i) =>
-        `<tr><td>${p.date}</td><td>${formatCurrency(p.amount)}</td><td>${frequencyLabels[p.frequency]}</td><td><button class="btn btn-primary" onclick="removeExtraPayment(${i})">Remove</button></td></tr>`
+        `<tr><td>${p.date}</td><td>${formatCurrency(p.amount)}</td><td>${frequencyLabels[p.frequency]}</td><td>${p.payer === 'all' ? 'All (Split)' : p.payer}</td><td><button class="btn btn-primary" onclick="removeExtraPayment(${i})">Remove</button></td></tr>`
     ).join('');
 }
 
@@ -358,8 +424,87 @@ function calculate() {
         <td>${formatCurrency(r.balance)}</td>
     </tr>`).join('');
 
+    // Co-payer breakdown
+    renderCopayerBreakdown(outstanding, emi, monthlyRate, schedule, origMonths, origTotalInterest);
+
     // Charts
     renderCharts(schedule);
+}
+
+function getExtraForMonth(paymentDate, payerFilter) {
+    let total = 0;
+    const monthStr = paymentDate.toISOString().slice(0, 7);
+    extraPayments.forEach(ep => {
+        if (payerFilter && ep.payer !== payerFilter && ep.payer !== 'all') return;
+        const epDate = new Date(ep.date);
+        if (epDate > paymentDate) return;
+        let amt = ep.amount;
+        if (payerFilter && ep.payer === 'all' && copayers.length > 0) {
+            amt = amt / copayers.length;
+        }
+        if (ep.frequency === 'once') {
+            if (ep.date.slice(0, 7) === monthStr) total += amt;
+        } else {
+            const monthsDiff = (paymentDate.getFullYear() - epDate.getFullYear()) * 12 + (paymentDate.getMonth() - epDate.getMonth());
+            if (monthsDiff < 0) return;
+            const interval = ep.frequency === 'monthly' ? 1 : ep.frequency === 'quarterly' ? 3 : ep.frequency === 'half-yearly' ? 6 : 12;
+            if (monthsDiff % interval === 0) total += amt;
+        }
+    });
+    return total;
+}
+
+function simulatePayerSchedule(share, emiShare, monthlyRate, currentDate, payerName) {
+    let balance = share;
+    let totalInterest = 0;
+    let totalExtra = 0;
+    let month = 0;
+    while (balance > 0.5) {
+        month++;
+        const paymentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + month, 23);
+        const interest = balance * monthlyRate;
+        let principal = Math.min(emiShare - interest, balance);
+        let extra = getExtraForMonth(paymentDate, payerName);
+        if (extra > 0) extra = Math.min(extra, balance - principal);
+        balance -= (principal + extra);
+        if (balance < 0) { extra += balance; balance = 0; }
+        totalInterest += interest;
+        totalExtra += extra;
+        if (month > 600) break;
+    }
+    return { months: month, totalInterest, totalExtra };
+}
+
+function renderCopayerBreakdown(outstanding, emi, monthlyRate, schedule, origMonths, origTotalInterest) {
+    const section = document.getElementById('copayerBreakdown');
+    const body = document.getElementById('copayerBreakdownBody');
+    if (copayers.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+
+    const numPayers = copayers.length;
+    const share = outstanding / numPayers;
+    const emiShare = emi / numPayers;
+    const origInterestPerPayer = origTotalInterest / numPayers;
+
+    const startDate = document.getElementById('startDate').value;
+    const start = new Date(startDate);
+    const now = new Date();
+    const monthsPassed = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+    const currentDate = new Date(start.getFullYear(), start.getMonth() + monthsPassed, 23);
+
+    body.innerHTML = copayers.map(name => {
+        const result = simulatePayerSchedule(share, emiShare, monthlyRate, currentDate, name);
+        const saved = origInterestPerPayer - result.totalInterest;
+        return `<tr>
+            <td>${name}</td>
+            <td>${formatCurrency(share)}</td>
+            <td>${formatCurrency(emiShare)}</td>
+            <td>${formatCurrency(result.totalExtra)}</td>
+            <td>${formatCurrency(result.totalInterest)}</td>
+            <td>${result.months} months</td>
+            <td>${formatCurrency(Math.max(0, saved))}</td>
+        </tr>`;
+    }).join('');
 }
 
 function renderCharts(schedule) {
