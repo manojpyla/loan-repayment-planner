@@ -2,8 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Loan Repayment Calculator</title>
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3f51b5">
+
+    <!-- iOS PWA meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Loan Calc">
+    <link rel="apple-touch-icon" href="icon-180.png">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+
+    <!-- SEO -->
+    <meta name="description" content="Loan Repayment Calculator - simulate EMI, track co-payer shares, record extra payments, and visualize payoff. An app by Manoj Pyla.">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -62,11 +80,48 @@
         .inline-add input { flex: 1; }
         .inline-add .btn { white-space: nowrap; }
         .footer { text-align: center; padding: 24px 0 8px; font-size: 0.85rem; color: var(--text-muted); }
+
+        /* iOS install banner */
+        .ios-install-banner { display: none; background: var(--accent-bg); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; font-size: 0.88rem; line-height: 1.5; text-align: center; border: 1px solid var(--input-border); }
+        .ios-install-banner .dismiss { cursor: pointer; font-weight: 700; color: #3f51b5; margin-left: 8px; }
+
+        /* Tablet */
         @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .charts { grid-template-columns: 1fr; } }
+
+        /* Mobile / iPhone */
+        @media (max-width: 480px) {
+            body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+            .dashboard { padding: 12px; padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+            .header h1 { font-size: 1.15rem; }
+            .theme-toggle { padding: 6px 10px; font-size: 0.9rem; }
+            .card { padding: 16px; border-radius: 10px; }
+            .card h2 { font-size: 1rem; }
+            .form-group label { font-size: 0.85rem; }
+            .form-group input, .form-group select { padding: 12px; font-size: 16px; border-radius: 8px; } /* 16px prevents iOS zoom */
+            .btn { padding: 12px 18px; font-size: 1rem; min-height: 44px; border-radius: 8px; } /* 44px touch target */
+            .summary { grid-template-columns: 1fr 1fr; gap: 8px; }
+            .summary-item { padding: 10px 8px; }
+            .summary-item .value { font-size: 1.05rem; }
+            .summary-item .label { font-size: 0.72rem; }
+            .chart-container { height: 260px; }
+            table { font-size: 0.78rem; }
+            th, td { padding: 6px 5px; }
+            .inline-add { flex-wrap: wrap; }
+            .inline-add input { min-width: 0; }
+            .copayer-tag { font-size: 0.8rem; padding: 5px 10px; }
+            .extra-payments table { font-size: 0.76rem; }
+            .footer { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+        }
     </style>
 </head>
 <body>
 <div class="dashboard">
+    <!-- iOS install prompt -->
+    <div class="ios-install-banner" id="iosInstallBanner">
+        Install this app on your iPhone: tap the Share button, then <strong>"Add to Home Screen"</strong>.
+        <span class="dismiss" onclick="dismissInstallBanner()">&times; Dismiss</span>
+    </div>
+
     <div class="header">
         <h1>Loan Repayment Calculator</h1>
         <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="Toggle Dark Mode">
@@ -704,10 +759,36 @@ function renderCharts(schedule) {
     }
 }
 
+// ── PWA: Service Worker Registration ──
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('SW registered:', reg.scope))
+            .catch(err => console.log('SW registration failed:', err));
+    });
+}
+
+// ── iOS Install Banner ──
+function dismissInstallBanner() {
+    document.getElementById('iosInstallBanner').style.display = 'none';
+    localStorage.setItem('iosBannerDismissed', '1');
+}
+
+function showInstallBannerIfNeeded() {
+    // Show only on iOS Safari when not already installed as PWA
+    const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    const isStandalone = window.navigator.standalone === true;
+    const dismissed = localStorage.getItem('iosBannerDismissed');
+    if (isIos && !isStandalone && !dismissed) {
+        document.getElementById('iosInstallBanner').style.display = 'block';
+    }
+}
+
 // Initial calculation on load
 window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('extraPaymentDate').value = new Date().toISOString().slice(0, 10);
     calculate();
+    showInstallBannerIfNeeded();
 });
 </script>
 </body>
