@@ -91,6 +91,20 @@
         .btn-danger:hover { background: #d32f2f; }
         .plan-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 
+        /* Collapsible sections */
+        .section-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .section-header h2 { margin-bottom: 0; }
+        .collapse-icon { font-size: 1.2rem; color: var(--text-muted); transition: transform 0.3s ease; font-weight: 700; line-height: 1; }
+        .card.collapsed .collapse-icon { transform: rotate(-90deg); }
+        .section-body { overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; max-height: 5000px; opacity: 1; }
+        .card.collapsed .section-body { max-height: 0; opacity: 0; }
+        .card.collapsed { padding-bottom: 18px; }
+        .charts-wrapper.collapsed .section-body { max-height: 0; opacity: 0; }
+        .charts-wrapper { grid-column: 1 / -1; }
+        .charts-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; background: var(--card-bg); border-radius: 12px; padding: 18px 24px; box-shadow: 0 2px 8px var(--shadow); margin-bottom: 0; transition: background 0.3s; }
+        .charts-header h2 { margin: 0; color: var(--heading2); font-size: 1.1rem; }
+        .charts-wrapper.collapsed .charts { display: none; }
+
         /* iOS install banner */
         .ios-install-banner { display: none; background: var(--accent-bg); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; font-size: 0.88rem; line-height: 1.5; text-align: center; border: 1px solid var(--input-border); }
         .ios-install-banner .dismiss { cursor: pointer; font-weight: 700; color: #3f51b5; margin-left: 8px; }
@@ -121,6 +135,8 @@
             .copayer-tag { font-size: 0.8rem; padding: 5px 10px; }
             .extra-payments table { font-size: 0.76rem; }
             .footer { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+            .charts-header { padding: 14px 16px; border-radius: 10px; }
+            .charts-header h2 { font-size: 1rem; }
         }
     </style>
 </head>
@@ -141,9 +157,13 @@
 
     <div class="grid">
         <!-- Input Panel -->
-        <div class="card">
-            <h2>Loan Parameters</h2>
-            <div class="form-group">
+        <div class="card" id="loanParamsCard">
+            <div class="section-header" onclick="toggleSection('loanParamsCard')">
+                <h2>Loan Parameters</h2>
+                <span class="collapse-icon">&#9660;</span>
+            </div>
+            <div class="section-body">
+            <div class="form-group" style="margin-top:16px;">
                 <label>Currency</label>
                 <select id="currency" onchange="calculate()">
                     <option value="USD" data-locale="en-US">$ US Dollar (USD)</option>
@@ -184,12 +204,17 @@
                 <input type="number" id="interestRate" value="8.25" step="0.01" min="0">
             </div>
             <button class="btn btn-primary" onclick="calculate()">Calculate Schedule</button>
+            </div>
         </div>
 
         <!-- Additional Payment Panel -->
-        <div class="card">
-            <h2>Record Additional Payment</h2>
-            <div class="form-group">
+        <div class="card" id="extraPayCard">
+            <div class="section-header" onclick="toggleSection('extraPayCard')">
+                <h2>Record Additional Payment</h2>
+                <span class="collapse-icon">&#9660;</span>
+            </div>
+            <div class="section-body">
+            <div class="form-group" style="margin-top:16px;">
                 <label>Payment Date</label>
                 <input type="date" id="extraPaymentDate">
             </div>
@@ -222,11 +247,16 @@
                     <tbody id="extraPaymentsBody"></tbody>
                 </table>
             </div>
+            </div>
         </div>
 
         <!-- Co-Payer Panel -->
-        <div class="card full-width">
-            <h2>Co-Payers</h2>
+        <div class="card full-width" id="copayerCard">
+            <div class="section-header" onclick="toggleSection('copayerCard')">
+                <h2>Co-Payers</h2>
+                <span class="collapse-icon">&#9660;</span>
+            </div>
+            <div class="section-body">
             <div class="inline-add">
                 <input type="text" id="copayerName" placeholder="Enter co-payer name">
                 <input type="number" id="copayerShare" placeholder="Share %" value="" min="1" max="100" style="max-width:100px;">
@@ -243,11 +273,16 @@
                     </table>
                 </div>
             </div>
+            </div>
         </div>
 
         <!-- Summary -->
-        <div class="card full-width">
-            <h2>Loan Summary</h2>
+        <div class="card full-width" id="summaryCard">
+            <div class="section-header" onclick="toggleSection('summaryCard')">
+                <h2>Loan Summary</h2>
+                <span class="collapse-icon">&#9660;</span>
+            </div>
+            <div class="section-body">
             <div class="summary" id="summarySection">
                 <div class="summary-item"><div class="value" id="sumEmi">--</div><div class="label">Monthly EMI</div></div>
                 <div class="summary-item"><div class="value" id="sumPaidToDate">--</div><div class="label">Paid To Date</div></div>
@@ -260,9 +295,15 @@
                 <div class="summary-item"><div class="value" id="sumEndDate">--</div><div class="label">Loan End Date</div></div>
                 <div class="summary-item"><div class="value" id="sumMonthsSaved">--</div><div class="label">Months Saved</div></div>
             </div>
+            </div>
         </div>
 
         <!-- Charts -->
+        <div class="charts-wrapper" id="chartsWrapper">
+            <div class="charts-header" onclick="toggleChartsSection()">
+                <h2>Analytics & Charts</h2>
+                <span class="collapse-icon" id="chartsCollapseIcon">&#9660;</span>
+            </div>
         <div class="charts">
             <div class="card">
                 <h2>Principal vs Interest (Monthly)</h2>
@@ -297,10 +338,15 @@
                 <div class="chart-container"><canvas id="copayerPIChart"></canvas></div>
             </div>
         </div>
+        </div>
 
         <!-- Amortization Table -->
-        <div class="card full-width">
-            <h2>Repayment Schedule</h2>
+        <div class="card full-width" id="scheduleCard">
+            <div class="section-header" onclick="toggleSection('scheduleCard')">
+                <h2>Repayment Schedule</h2>
+                <span class="collapse-icon">&#9660;</span>
+            </div>
+            <div class="section-body">
             <div class="table-wrap">
                 <table>
                     <thead id="scheduleHead">
@@ -309,10 +355,15 @@
                     <tbody id="scheduleBody"></tbody>
                 </table>
             </div>
+            </div>
         </div>
         <!-- Save / Load Plans -->
-        <div class="card full-width">
-            <h2>Saved Repayment Plans</h2>
+        <div class="card full-width" id="savedPlansCard">
+            <div class="section-header" onclick="toggleSection('savedPlansCard')">
+                <h2>Saved Repayment Plans</h2>
+                <span class="collapse-icon">&#9660;</span>
+            </div>
+            <div class="section-body">
             <div class="inline-add">
                 <input type="text" id="planName" placeholder="Enter plan name (e.g. 'Aggressive payoff')">
                 <button class="btn btn-success" onclick="savePlan()">Save Current Plan</button>
@@ -330,6 +381,7 @@
                         <tbody id="savedPlansBody"></tbody>
                     </table>
                 </div>
+            </div>
             </div>
         </div>
     </div>
@@ -363,6 +415,47 @@ function toggleTheme() {
             document.getElementById('themeLabel').textContent = 'Light';
         });
     }
+})();
+
+// ── Collapsible Sections ──
+function toggleSection(cardId) {
+    const card = document.getElementById(cardId);
+    card.classList.toggle('collapsed');
+    // Persist state
+    const states = JSON.parse(localStorage.getItem('sectionStates') || '{}');
+    states[cardId] = card.classList.contains('collapsed');
+    localStorage.setItem('sectionStates', JSON.stringify(states));
+}
+
+function toggleChartsSection() {
+    const wrapper = document.getElementById('chartsWrapper');
+    wrapper.classList.toggle('collapsed');
+    const icon = document.getElementById('chartsCollapseIcon');
+    icon.style.transform = wrapper.classList.contains('collapsed') ? 'rotate(-90deg)' : '';
+    const states = JSON.parse(localStorage.getItem('sectionStates') || '{}');
+    states['chartsWrapper'] = wrapper.classList.contains('collapsed');
+    localStorage.setItem('sectionStates', JSON.stringify(states));
+}
+
+// Restore collapsed states on load
+(function() {
+    const states = JSON.parse(localStorage.getItem('sectionStates') || '{}');
+    document.addEventListener('DOMContentLoaded', () => {
+        Object.keys(states).forEach(id => {
+            if (states[id]) {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (id === 'chartsWrapper') {
+                        el.classList.add('collapsed');
+                        const icon = document.getElementById('chartsCollapseIcon');
+                        if (icon) icon.style.transform = 'rotate(-90deg)';
+                    } else {
+                        el.classList.add('collapsed');
+                    }
+                }
+            }
+        });
+    });
 })();
 
 function getChartColors() {
