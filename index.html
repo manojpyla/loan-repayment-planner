@@ -416,7 +416,7 @@
                 <h2 style="margin-top:16px;">Per-Payer Breakdown</h2>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>Payer</th><th>Share</th><th>EMI Share</th><th>Principal Paid</th><th>Interest Paid</th><th>Extra Paid</th><th>Total Paid</th><th>Payoff In</th><th>Interest Saved</th></tr></thead>
+                        <thead><tr><th>Payer</th><th>Share</th><th>EMI Share</th><th>Principal Paid</th><th>Interest Paid</th><th>Extra Paid</th><th>Total Paid</th><th>Payoff In</th><th>Last Payment</th><th>Interest Saved</th></tr></thead>
                         <tbody id="copayerBreakdownBody"></tbody>
                     </table>
                 </div>
@@ -719,14 +719,64 @@ function removeExtraPayment(index) {
     calculate();
 }
 
+let editingPaymentIndex = -1;
+
+function editExtraPayment(index) {
+    editingPaymentIndex = index;
+    renderExtraPayments();
+}
+
+function cancelEditPayment() {
+    editingPaymentIndex = -1;
+    renderExtraPayments();
+}
+
+function saveEditPayment(index) {
+    const row = document.getElementById('editRow_' + index);
+    const date = row.querySelector('.edit-date').value;
+    const amount = parseFloat(row.querySelector('.edit-amount').value);
+    const frequency = row.querySelector('.edit-freq').value;
+    const payer = row.querySelector('.edit-payer').value;
+    if (!date || !amount || amount <= 0) { alert('Please enter a valid date and amount.'); return; }
+    extraPayments[index] = { date, amount, frequency, payer };
+    extraPayments.sort((a, b) => a.date.localeCompare(b.date));
+    editingPaymentIndex = -1;
+    renderExtraPayments();
+    calculate();
+}
+
 function renderExtraPayments() {
     const section = document.getElementById('extraPaymentsSection');
     const body = document.getElementById('extraPaymentsBody');
     if (extraPayments.length === 0) { section.style.display = 'none'; return; }
     section.style.display = 'block';
-    body.innerHTML = extraPayments.map((p, i) =>
-        `<tr><td>${p.date}</td><td>${formatCurrency(p.amount)}</td><td>${frequencyLabels[p.frequency]}</td><td>${p.payer === 'all' ? 'All (Split)' : p.payer}</td><td><button class="btn btn-primary" onclick="removeExtraPayment(${i})">Remove</button></td></tr>`
-    ).join('');
+    const payerOpts = '<option value="all">All (Split)</option>' + copayers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    const freqOpts = Object.entries(frequencyLabels).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+
+    body.innerHTML = extraPayments.map((p, i) => {
+        if (i === editingPaymentIndex) {
+            return `<tr id="editRow_${i}" class="edit-row">
+                <td><input type="date" class="edit-date" value="${p.date}" style="width:130px;padding:4px 6px;font-size:0.82rem;border:1px solid var(--input-border);border-radius:4px;background:var(--input-bg);color:var(--text);"></td>
+                <td><input type="number" class="edit-amount" value="${p.amount}" min="0" style="width:90px;padding:4px 6px;font-size:0.82rem;border:1px solid var(--input-border);border-radius:4px;background:var(--input-bg);color:var(--text);"></td>
+                <td><select class="edit-freq" style="padding:4px 6px;font-size:0.82rem;border:1px solid var(--input-border);border-radius:4px;background:var(--input-bg);color:var(--text);">${freqOpts.replace('value="' + p.frequency + '"', 'value="' + p.frequency + '" selected')}</select></td>
+                <td><select class="edit-payer" style="padding:4px 6px;font-size:0.82rem;border:1px solid var(--input-border);border-radius:4px;background:var(--input-bg);color:var(--text);">${payerOpts.replace('value="' + p.payer + '"', 'value="' + p.payer + '" selected')}</select></td>
+                <td style="white-space:nowrap;">
+                    <button class="btn btn-success" onclick="saveEditPayment(${i})" style="padding:4px 8px;font-size:0.78rem;margin:1px;">Save</button>
+                    <button class="btn btn-warn" onclick="cancelEditPayment()" style="padding:4px 8px;font-size:0.78rem;margin:1px;">Cancel</button>
+                </td>
+            </tr>`;
+        }
+        return `<tr>
+            <td>${p.date}</td>
+            <td>${formatCurrency(p.amount)}</td>
+            <td>${frequencyLabels[p.frequency]}</td>
+            <td>${p.payer === 'all' ? 'All (Split)' : p.payer}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-primary" onclick="editExtraPayment(${i})" style="padding:4px 8px;font-size:0.78rem;margin:1px;">Edit</button>
+                <button class="btn btn-danger" onclick="removeExtraPayment(${i})" style="padding:4px 8px;font-size:0.78rem;margin:1px;">Del</button>
+            </td>
+        </tr>`;
+    }).join('');
 }
 
 function calculate() {
@@ -991,7 +1041,9 @@ function renderCopayerBreakdown(outstanding, emi, monthlyRate, schedule, origMon
         return { name: c.name, sharePct: c.share, share: payerShare, emiShare: payerEmi, ...result, saved };
     });
 
-    body.innerHTML = lastPayerResults.map(r => `<tr>
+    body.innerHTML = lastPayerResults.map(r => {
+        const lastPayDate = r.schedule.length > 0 ? r.schedule[r.schedule.length - 1].date : '--';
+        return `<tr>
         <td>${r.name} (${r.sharePct}%)</td>
         <td>${formatCurrency(r.share)}</td>
         <td>${formatCurrency(r.emiShare)}</td>
@@ -1000,8 +1052,10 @@ function renderCopayerBreakdown(outstanding, emi, monthlyRate, schedule, origMon
         <td>${formatCurrency(r.totalExtra)}</td>
         <td>${formatCurrency(r.totalPaid)}</td>
         <td>${r.months} mo</td>
+        <td>${lastPayDate}</td>
         <td>${formatCurrency(Math.max(0, r.saved))}</td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
 }
 
 function renderCharts(schedule) {
@@ -1365,14 +1419,15 @@ function exportToExcel() {
         const cpData = [
             ['CO-PAYER DETAILED BREAKDOWN'],
             [''],
-            ['Payer', 'Share %', 'Share Amount', 'EMI Share', 'Principal Paid', 'Interest Paid', 'Extra Paid', 'Total Paid', 'Payoff (Months)', 'Interest Saved']
+            ['Payer', 'Share %', 'Share Amount', 'EMI Share', 'Principal Paid', 'Interest Paid', 'Extra Paid', 'Total Paid', 'Payoff (Months)', 'Last Payment', 'Interest Saved']
         ];
         lastPayerResults.forEach(r => {
+            const lastPayDate = r.schedule.length > 0 ? r.schedule[r.schedule.length - 1].date : '--';
             cpData.push([
                 r.name, r.sharePct + '%', Math.round(r.share), Math.round(r.emiShare),
                 Math.round(r.totalPrincipalPaid), Math.round(r.totalInterest),
                 Math.round(r.totalExtra), Math.round(r.totalPaid),
-                r.months, Math.round(Math.max(0, r.saved))
+                r.months, lastPayDate, Math.round(Math.max(0, r.saved))
             ]);
         });
 
